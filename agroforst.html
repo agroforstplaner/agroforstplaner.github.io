@@ -1,0 +1,335 @@
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agroforst Planer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+        }
+        #map-container {
+            flex: 2;
+            height: 100vh;
+        }
+        #map {
+            height: 100%;
+        }
+        #controls {
+            flex: 1;
+            padding: 10px;
+            background: #f8f8f8;
+            overflow-y: auto;
+        }
+#bottom-right-text {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+	}
+
+
+button.active {
+    background-color: #4CAF50; /* Grün */
+    color: white;
+}
+
+    </style>
+</head>
+<body>
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+<div id="controls">
+        <h3>Einstellungen</h3>
+        
+        <!-- Grid Layout für die Steuerelemente -->
+        <div class="control-grid">
+            <div class="control-text">
+                <label for="stripWidth">Streifenbreite (m):</label>
+            </div>
+            <div class="control-input">
+                <input type="range" id="stripWidth" value="5" min="1" max="100" step="1">
+                <span id="stripWidthValue">5</span> m
+            </div>
+
+            <div class="control-text">
+                <label for="stripSpacing">Abstand (m):</label>
+            </div>
+            <div class="control-input">
+                <input type="range" id="stripSpacing" value="24" min="1" max="100" step="1">
+                <span id="stripSpacingValue">24</span> m
+            </div>
+
+            <div class="control-text">
+                <label for="orientation">Ausrichtung (°):</label>
+            </div>
+            <div class="control-input">
+                <input type="range" id="orientation" value="0" min="0" max="180" step="2">
+                <span id="orientationValue">0</span> °
+            </div>
+
+            <div class="control-text">
+                <label for="headland">Vorgewende (m):</label>
+            </div>
+            <div class="control-input">
+                <input type="range" id="headland" value="12" min="0" max="50" step="1">
+                <span id="headlandValue">12</span> m
+            </div>
+
+ 	    <div class="control-text">
+                <label for="paralelshift">Streifen verschieben (m):</label>
+            </div>
+            <div class="control-input">
+                <input type="range" id="paralelshift" value="0" min="-20" max="20" step="1">
+                <span id="paralelshiftValue">0</span> m
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <button onclick="generateStrips()">Streifen generieren</button>
+	
+	<button id="dtk10grauBtn" onclick="toggleDTK10Grau()">Topographische Karte</button>
+
+    	<button id="windErosionBtn" onclick="toggleErosion_wind()">Winderosion</button>
+    	<button id="wasserErosionBtn" onclick="toggleErosion_wasser()">Wassererosion</button>
+        <button id="downloadButton" style="display:none;" onclick="downloadGeoJSON()">Download Streifen als GeoJSON</button>
+
+        <h4>Flächen</h4>
+        <p id="totalArea">Gesamtfläche: </p>
+        <p id="stripsArea">Streifenfläche: </p>
+        <p id="remainingArea">Verbleibende Fläche: </p>
+	<div id="legendContainer"></div> 
+<div id="bottom-right-text">© 2025 Marco Donat - Kontakt: marco.donat[at]hnee.de; marco.donat[at]zalf.de</div>
+
+
+    </div>
+
+
+    <script>
+        var map = L.map('map').setView([52.52, 13.405], 10);
+        L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        
+        var polygonLayer;
+        var stripLayer = L.layerGroup().addTo(map);
+
+        var polygonData = localStorage.getItem("polygonData");
+        if (polygonData) {
+            let geojson = JSON.parse(polygonData);
+            polygonLayer = L.geoJSON(geojson).addTo(map);
+            map.fitBounds(polygonLayer.getBounds());
+        } else {
+            alert("Kein Polygon gefunden!");
+        }
+
+        let stripGeoJSON = {
+            type: "FeatureCollection",
+            features: []
+        };
+
+        function generateStrips() {
+            stripGeoJSON = { type: "FeatureCollection", features: [] };
+            stripLayer.clearLayers();
+
+            let width = parseFloat(document.getElementById('stripWidth').value);
+            let spacing = parseFloat(document.getElementById('stripSpacing').value);
+            let angle = parseFloat(document.getElementById('orientation').value);
+            let headland = parseFloat(document.getElementById('headland').value);
+	    let paralelshift = parseFloat(document.getElementById('paralelshift').value);
+
+            if (!polygonData) return;
+            let geojson = JSON.parse(polygonData);
+            let polygon = turf.polygon(geojson.features[0].geometry.coordinates);
+            let totalArea = turf.area(polygon);
+
+            let innerPolygon = turf.buffer(polygon, -headland, { units: 'meters' });
+            if (!innerPolygon || !innerPolygon.geometry.coordinates.length) {
+                alert("Vorwende zu groß!");
+                return;
+            }
+
+            let bbox = turf.bbox(innerPolygon);
+            let centerX = (bbox[0] + bbox[2]) / 2;
+            let centerY = (bbox[1] + bbox[3]) / 2;
+
+            let baseLength = 0.5; //in grad
+            let lineStart = [centerX - baseLength / 2, centerY];
+            let lineEnd = [centerX + baseLength / 2, centerY];
+            let baseLine = turf.lineString([lineStart, lineEnd]);
+
+            let totalStripsArea = 0;
+            let lines = [];
+            let step = spacing + width;
+
+            for (let i = -100; i <= 100; i++) {
+                let offset = i * step;
+                let parallelLine = turf.lineOffset(baseLine, offset, { units: 'meters' });
+                lines.push(parallelLine);
+            }
+
+	    let rotatedLines = lines.map(line => {
+    		  let rotated = turf.transformRotate(line, angle, { pivot: [centerX, centerY] });
+  		  return turf.transformTranslate(rotated, paralelshift, angle, { units: 'meters' });
+		});
+
+            let stripPolygons = rotatedLines.map(line => turf.buffer(line, width / 2, { units: 'meters' }));
+
+            stripPolygons.forEach(strip => {
+                if (turf.booleanIntersects(strip, innerPolygon)) {
+                    let intersected = turf.intersect(strip, innerPolygon);
+                    if (intersected) {
+                        stripGeoJSON.features.push(intersected);
+                        totalStripsArea += turf.area(intersected);
+                        L.geoJSON(intersected, { style: { color: 'green', weight: 5 } }).addTo(stripLayer);
+                    }
+                }
+            });
+
+            document.getElementById('totalArea').innerText = "Gesamtfläche: " + (totalArea / 10000).toFixed(2) + " ha";
+            document.getElementById('stripsArea').innerText = "Streifenfläche: " + (totalStripsArea / 10000).toFixed(2) + " ha" + "  ( " + ((totalStripsArea/totalArea)*100).toFixed(1) + " %)";
+            document.getElementById('remainingArea').innerText = "Verbleibende Fläche: " + ((totalArea - totalStripsArea) / 10000).toFixed(2) + " ha";
+		
+		
+
+
+            if (stripGeoJSON.features.length > 0) {
+                document.getElementById('downloadButton').style.display = 'inline-block';
+            }
+        }
+
+
+
+
+
+        // Event-Listener für Schieberegler: Jede Änderung führt sofort zu einer Ausführung der Funktion generateStrips()
+        document.getElementById('stripWidth').addEventListener('input', function() {
+            document.getElementById('stripWidthValue').textContent = this.value;
+            generateStrips();  // Aufruf der Funktion, die Streifen generiert
+        });
+
+        document.getElementById('stripSpacing').addEventListener('input', function() {
+            document.getElementById('stripSpacingValue').textContent = this.value;
+            generateStrips();  // Aufruf der Funktion, die Streifen generiert
+        });
+
+        document.getElementById('orientation').addEventListener('input', function() {
+            document.getElementById('orientationValue').textContent = this.value;
+            generateStrips();  // Aufruf der Funktion, die Streifen generiert
+        });
+
+        document.getElementById('headland').addEventListener('input', function() {
+            document.getElementById('headlandValue').textContent = this.value;
+            generateStrips();  // Aufruf der Funktion, die Streifen generiert
+        });
+
+	document.getElementById('paralelshift').addEventListener('input', function() {
+    	document.getElementById('paralelshiftValue').textContent = this.value;
+    	generateStrips();
+	});
+
+var dtk10grauLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/mapproxy/dtk10grau/service/wms?", {
+    layers: 'bb_dtk10_grau',
+    format: 'image/png',
+    transparent: true,
+    attribution: "© Geobasis-BB"
+});
+
+
+
+
+//WMS
+var erosion_wind = L.tileLayer.wms("https://inspire.brandenburg.de/services/boerosion_wms?request=GetCapabilities&service=WMS", {
+            layers: 'wi_gefstufen',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG25833,
+            attribution: "© Landesamt für Bergbau, Geologie und Rohstoffe Brandenburg, dl-de/by-2-0",
+	    styles: 'default'
+        });
+var erosion_wasser = L.tileLayer.wms("https://inspire.brandenburg.de/services/boerosion_wms?request=GetCapabilities&service=WMS", {
+            layers: 'wa_gefstufen_rksl',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG25833,
+            attribution: "© Landesamt für Bergbau, Geologie und Rohstoffe Brandenburg, dl-de/by-2-0",
+	    styles: 'default'
+        });
+
+
+const erosionWasserLegendURL = "https://inspire.brandenburg.de/services/boerosion_wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=wa_gefstufen_rksl&format=image/png";
+const erosionWindLegendURL = "https://inspire.brandenburg.de/services/boerosion_wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=wi_gefstufen&format=image/png";
+
+function toggleDTK10Grau() {
+    let button = document.getElementById("dtk10grauBtn");
+
+    if (map.hasLayer(dtk10grauLayer)) {
+        map.removeLayer(dtk10grauLayer);
+        button.classList.remove("active");
+    } else {
+        dtk10grauLayer.addTo(map);
+        button.classList.add("active");
+    }
+}
+
+function toggleErosion_wasser() {
+    toggleLayerWithLegend(erosion_wasser, "wasserErosionBtn", erosionWasserLegendURL, "Wassererosion");
+}
+
+function toggleErosion_wind() {
+    toggleLayerWithLegend(erosion_wind, "windErosionBtn", erosionWindLegendURL, "Winderosion");
+}
+
+function toggleLayerWithLegend(layer, buttonId, legendURL, legendTitle) {
+    let button = document.getElementById(buttonId);
+    let legendContainer = document.getElementById("legendContainer");
+
+    if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+        button.classList.remove("active");
+
+        if (legendContainer) {
+            legendContainer.innerHTML = "";
+            legendContainer.style.display = "none";
+        }
+    } else {
+        layer.addTo(map);
+        button.classList.add("active");
+
+        if (!legendContainer) {
+            legendContainer = document.createElement("div");
+            legendContainer.id = "legendContainer";
+            legendContainer.style.marginTop = "20px";
+            document.getElementById("controls").appendChild(legendContainer);
+        }
+
+        legendContainer.innerHTML = `<h3>${legendTitle} - Legende (LBGR)</h3><img src="${legendURL}" alt="Legende ${legendTitle}" style="max-width:100%;">`;
+        legendContainer.style.display = "block";
+    }
+}
+
+
+// Funktion zum Download der GeoJSON-Datei
+        function downloadGeoJSON() {
+            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stripGeoJSON));
+            let downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "streifen.geojson");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+    </script>
+</body>
+</html>
