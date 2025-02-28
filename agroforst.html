@@ -9,6 +9,15 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
+.leaflet-control-scale {
+    position: absolute !important;
+    bottom: 10px !important;
+    left: 10px !important;
+    font-size: 18px !important;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 0px;
+    border-radius: 5px;
+}
         body {
             display: flex;
             height: 100vh;
@@ -192,7 +201,7 @@ button.active {
                     if (intersected) {
                         stripGeoJSON.features.push(intersected);
                         totalStripsArea += turf.area(intersected);
-                        L.geoJSON(intersected, { style: { color: 'green', weight: 5 } }).addTo(stripLayer);
+                        L.geoJSON(intersected, { style: { color: 'black', weight: 2 } }).addTo(stripLayer);
                     }
                 }
             });
@@ -330,6 +339,12 @@ function toggleLayerWithLegend(layer, buttonId, legendURL, legendTitle) {
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
         }
+L.control.scale({
+    position: 'bottomleft',
+    metric: true,
+    imperial: false,
+    maxWidth: 200 // Größerer Maßstab mit mehreren Segmenten
+}).addTo(map);
     </script>
 </body>
 </html>
