@@ -220,6 +220,18 @@ Es besteht daher ein erhöhtes Risiko, dass staatliche Behörden auf diese Daten
         });
         map.addControl(drawControl);
 
+function logPolygonCoordinates() {
+    if (drawnItems.getLayers().length === 0) {
+        console.log("Kein Polygon vorhanden.");
+        return;
+    }
+
+    let geojson = drawnItems.toGeoJSON();
+    let coordinates = geojson.features[0].geometry.coordinates[0]; // Array der Eckpunkte
+
+    console.log("Polygon-Koordinaten:", coordinates);
+}
+
         map.on(L.Draw.Event.CREATED, function (event) {
             drawnItems.clearLayers(); // Vorherige Polygone entfernen
             var layer = event.layer;
@@ -227,9 +239,10 @@ Es besteht daher ein erhöhtes Risiko, dass staatliche Behörden auf diese Daten
 
             var area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) / 10000;
             document.getElementById('area').textContent = area.toFixed(2);
-
+logPolygonCoordinates(); 
             document.getElementById("agroforstBtn").disabled = false;
         });
+
 
 
 
