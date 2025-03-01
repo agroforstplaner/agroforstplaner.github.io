@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agroforstplaner</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+    <script src="https://unpkg.com/leaflet-geometryutil"></script>
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+    <script src="https://unpkg.com/georaster"></script>
+    <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
+    <style>
+
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 20% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 50%;
+    text-align: center;
+    border-radius: 10px;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button {
+    margin: 10px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#okButton {
+    background-color: green;
+    color: white;
+}
+
+        body { display: flex; }
+
+        #map-container { width: 70%; }
+        #map { height: 90vh; }
+        #controls { text-align: center; margin: 10px; }
+        #info { width: 30%; padding: 20px; background: #f8f8f8; border-left: 2px solid #ddd; }
+	.active {
+   	 background-color: green;
+ 	   color: white;
+	}
+
+	#bottom-right-text {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+	}
+
+#polygon-steps {
+    margin-top: 20px;
+    padding: 10px;
+    background: #e9f5ff;
+    border-left: 4px solid #007bff;
+    border-radius: 5px;
+}
+
+#polygon-steps h3 {
+    color: #007bff;
+    margin-bottom: 10px;
+}
+
+#polygon-steps ol {
+    padding-left: 20px;
+}
+
+#polygon-steps li {
+    margin-bottom: 20px; /* Größerer Abstand zwischen den Schritten */
+    font-size: 18px;
+}
+
+.achtung {
+    color: red;
+    font-size: 16px;
+    margin-top: 5px;
+}
+    </style>
+</head>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (!localStorage.getItem("visited")) {
+            document.getElementById("welcomeModal").style.display = "block";
+        }
+    });
+
+    function closeModal() {
+        document.getElementById("welcomeModal").style.display = "none";
+        localStorage.setItem("visited", "true");
+    }
+
+    function openSettings() {
+        alert("Einstellungen");
+    }
+
+    function acceptOnlyRequired() {
+        alert("Nur erforderliche Cookies wurden akzeptiert.");
+        closeModal();
+    }
+</script>
+
+<body>
+<div id="welcomeModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>Einsatz von Cookies</h2>
+        <p>Wir vom Agroforstplaner nutzen Cookies und andere Technologien von Drittanbietern, um unser Planungstool zu verbessern.
+ Dazu zählen Cookies, die für den Betrieb der Seite technisch notwendig sind, während andere Cookies dazu dienen, 
+unsere Berechnungen zu verbessern. Dazu speichern wir Informationen auf deinen 
+Geräten und rufen diese ab, um persönliche Daten, wie etwa IP-Adressen, oder Browserdaten zu verarbeiten. Durch Klicken auf "Akzeptieren" 
+willigst Du zu diesen Zwecken jederzeit widerruflich ein (Art. 6 I lit. a DSGVO). Auswahlmöglichkeiten und weitere Informationen erhältst Du über 
+„Einstellungen“. Du kannst ebenso nur den Einsatz von essenziellen Cookies zulassen, wodurch nur eingesetzten Techniken, 
+die für den Betrieb der Seiten unerlässlich sind, aktiviert werden. Einige Dienste übermitteln im Rahmen der Verarbeitung 
+zu den genannten Zwecken möglicherweise Daten in Länder außerhalb der EU/des EWR (Drittlandübermittlung), z.B. in die USA. 
+Das Datenschutzniveau in diesen Ländern ist möglicherweise nicht mit dem in den EU-/EWR-Ländern vergleichbar. 
+Es besteht daher ein erhöhtes Risiko, dass staatliche Behörden auf diese Daten zugreifen können.</p>
+        <button id="okButton" onclick="closeModal()">Akzeptieren</button>
+        <button onclick="openSettings()">Einstellungen</button>
+        <button onclick="acceptOnlyRequired()">Nur erforderliche</button>
+    </div>
+</div>
+    <div id="map-container">
+        <div id="controls">
+            <button onclick="setOSM()">OSM</button>
+            <button onclick="setSatellite()">Satellit</button>
+	<button id="wetterBtn" onclick="toggleWetterLayer()">Wetter</button>
+	    <button id="dtk10grauBtn" onclick="toggleDTK10Grau()">Topographische Karte</button>
+            <button id="flurstueckeBtn" onclick="toggleWMS()">Flurstücke</button>
+    	    <button id="bodenBtn" onclick="toggleSoilLayer()">Bodenschätzung</button>
+    	    <button id="windErosionBtn" onclick="toggleErosion_wind()">Winderosion</button>
+    	    <button id="wasserErosionBtn" onclick="toggleErosion_wasser()">Wassererosion</button>
+	    <button onclick="downloadPolygon()">Download JSON</button>
+            <input type="file" id="upload" accept=".json,.geojson" onchange="uploadPolygon(event)">
+            <button id="agroforstBtn" onclick="openAgroforstPage()" disabled>Agroforst planen</button>
+        </div>
+        <div id="map"></div>
+    </div>
+    <div id="info">
+<div id="polygon-steps">
+    <h3>Plane dein Agroforst in Brandenburg</h3>
+    <ol>
+        <li><strong>Schritt:</strong> Zoome zu deinem Acker/Flurstück.
+            <p class="achtung">⚠ Achtung: Anzeige der Flurstücke und Bodenschätzung erst ab hohem Zoomlevel möglich!</p>
+        </li>
+        <li><strong>Schritt:</strong> Zeichne deine Fläche mit dem Polygon-Knopf links in der Karte.
+            <p class="achtung">⚠ Achtung: Löcher (Gräben/Sölle) können noch nicht eingezeichnet werden).</p>
+        </li>
+        <li><strong>Schritt:</strong> Aktiviere die Karten der potenziellen Winderosion, Wassererosion,
+			<br> Topografische Karte oder Bodenschätzung um einen Eindruck über die
+			<br> standörtliche Heterogenität zu bekommen.
+            
+        </li>
+        <li><strong>Schritt:</strong> Dück auf den Knopf "Agroforst planen".
+            
+        </li>
+    </ol>
+</div>
+
+        <h2>Größe eingezeichnetes Polygon</h2>
+        <p>Fläche: <span id="area">0</span> ha</p>
+	<div id="legendContainer"></div> 
+<div id="info"></div>
+<div id="polygon-info"></div> 
+	<div id="bottom-right-text">© 2025 Marco Donat - Kontakt: marco.donat[at]hnee.de; marco.donat[at]zalf.de</div>
+        
+    </div>
+	
+
+    <script>
+        var map = L.map('map').setView([52.52, 13.405], 9);
+
+        var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        });
+
+        var satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            attribution: '&copy; Google'
+        });
+
+
+
+
+        osmLayer.addTo(map);
+
+        var drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        var drawControl = new L.Control.Draw({
+            edit: { featureGroup: drawnItems },
+            draw: { polygon: true, polyline: false, rectangle: false, circle: false, marker: false,circlemarker: false }
+        });
+        map.addControl(drawControl);
+
+function logPolygonCoordinates() {
+    if (drawnItems.getLayers().length === 0) {
+        console.log("Kein Polygon vorhanden.");
+        return;
+    }
+
+    let geojson = drawnItems.toGeoJSON();
+    let coordinates = geojson.features[0].geometry.coordinates[0]; // Array der Eckpunkte
+
+    console.log("Polygon-Koordinaten:", coordinates);
+}
+
+        map.on(L.Draw.Event.CREATED, function (event) {
+            drawnItems.clearLayers(); // Vorherige Polygone entfernen
+            var layer = event.layer;
+            drawnItems.addLayer(layer);
+
+            var area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) / 10000;
+            document.getElementById('area').textContent = area.toFixed(2);
+logPolygonCoordinates(); 
+            document.getElementById("agroforstBtn").disabled = false;
+        });
+
+
+
+
+        function openAgroforstPage() {
+            if (drawnItems.getLayers().length === 0) {
+                alert("Bitte ein Polygon zeichnen!");
+                return;
+            }
+
+            let geojson = drawnItems.toGeoJSON();
+            localStorage.setItem("polygonData", JSON.stringify(geojson));
+
+            window.location.href = "agroforst.html";
+        }
+
+        function downloadPolygon() {
+            if (drawnItems.getLayers().length === 0) {
+                alert("Bitte ein Polygon zeichnen!");
+                return;
+            }
+
+            var geojson = drawnItems.toGeoJSON();
+            var jsonBlob = new Blob([JSON.stringify(geojson)], { type: 'application/json' });
+
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(jsonBlob);
+            link.download = 'polygon.geojson';
+            link.click();
+        }
+
+        function uploadPolygon(event) {
+            var file = event.target.files[0];
+
+            if (!file) {
+                alert("Keine Datei ausgewählt!");
+                return;
+            }
+
+            var reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    var geojson = JSON.parse(e.target.result);
+
+                    if (geojson.type !== "FeatureCollection" || !geojson.features) {
+                        alert("Ungültiges GeoJSON-Format!");
+                        return;
+                    }
+
+                    drawnItems.clearLayers();
+                    L.geoJSON(geojson).addTo(drawnItems);
+
+                    let bounds = L.geoJSON(geojson).getBounds();
+                    map.fitBounds(bounds);
+
+                    document.getElementById("agroforstBtn").disabled = false;
+                } catch (err) {
+                    alert("Fehler beim Lesen der Datei: " + err);
+                }
+            };
+
+            reader.readAsText(file);
+        }
+
+        function setOSM() {
+            map.eachLayer(layer => map.removeLayer(layer));
+            osmLayer.addTo(map);
+            drawnItems.addTo(map);
+        }
+
+        function setSatellite() {
+            map.eachLayer(layer => map.removeLayer(layer));
+            satelliteLayer.addTo(map);
+            drawnItems.addTo(map);
+        }
+
+        var wmsLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/ows/alkis_wms?", {
+            layers: 'adv_alkis_flurstuecke',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG25833,
+            attribution: "© GeoBasis-DE/LGB, dl-de/by-2-0"
+        });
+
+        var soilLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/ows/alkis_wms?", {
+            layers: 'adv_alkis_bodensch',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG25833,
+            attribution: "© GeoBasis-DE/LGB, dl-de/by-2-0"
+        });
+
+	
+	var erosion_wind = L.tileLayer.wms("https://inspire.brandenburg.de/services/boerosion_wms?request=GetCapabilities&service=WMS", {
+            layers: 'wi_gefstufen',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG25833,
+            attribution: "© Landesamt für Bergbau, Geologie und Rohstoffe Brandenburg, dl-de/by-2-0",
+	    styles: 'default'
+        });
+
+
+	var erosion_wasser = L.tileLayer.wms("https://inspire.brandenburg.de/services/boerosion_wms?request=GetCapabilities&service=WMS", {
+            layers: 'wa_gefstufen_rksl',
+            format: 'image/png',
+            transparent: true,
+            crs: L.CRS.EPSG25833,
+            attribution: "© Landesamt für Bergbau, Geologie und Rohstoffe Brandenburg, dl-de/by-2-0",
+	    styles: 'default'
+        });
+
+// Layer für die GeoJSON-Boundary definieren
+var boundaryLayer = L.geoJSON(null, {
+    style: {
+        color: "red", // Farbe der Begrenzung
+        weight: 3,    // Linienbreite
+        fill: false   // Keine Füllung, nur Umrandung
+    }
+}).addTo(map); // Wird direkt zur Karte hinzugefügt
+
+
+var wetterLayer;
+
+function toggleWetterLayer() {
+    let button = document.getElementById("wetterBtn");
+
+    if (wetterLayer) {
+        if (map.hasLayer(wetterLayer)) {
+            map.removeLayer(wetterLayer);
+            button.classList.remove("active");
+        } else {
+            map.addLayer(wetterLayer);
+            button.classList.add("active");
+        }
+    } else {
+        fetch("data/dwd_bb_niederschlag_bezugszeitraum_1991_2020.geojson")
+            .then(response => response.json())
+            .then(data => {
+                wetterLayer = L.geoJSON(data, {
+                    onEachFeature: function (feature, layer) {
+                        layer.on("click", function () {
+                            showWeatherInfo(feature.properties);
+                            showPolygonInfo(feature.properties);
+                        });
+                    },
+                    pointToLayer: function (feature, latlng) {
+                        return L.circleMarker(latlng, {
+                            radius: 6,
+                            fillColor: "blue",
+                            color: "#000",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    }
+                }).addTo(map);
+                button.classList.add("active");
+            })
+            .catch(error => console.error("Fehler beim Laden der Wetterdaten:", error));
+    }
+}
+
+
+
+
+
+// GeoJSON-Datei aus dem Ordner "data" laden
+fetch("data/bb_grenzen.geojson")
+    .then(response => response.json())
+    .then(data => {
+        boundaryLayer.addData(data); // Daten in das GeoJSON-Layer laden
+        map.fitBounds(boundaryLayer.getBounds()); // Karte auf die GeoJSON-Grenze zoomen
+    })
+    .catch(error => console.error("Fehler beim Laden der GeoJSON-Datei:", error));
+
+
+
+var dtk10grauLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/mapproxy/dtk10grau/service/wms?", {
+    layers: 'bb_dtk10_grau',
+    format: 'image/png',
+    transparent: true,
+    attribution: "© GeoBasis-DE/LGB, dl-de/by-2-0"
+});
+
+
+
+
+
+function toggleDTK10Grau() {
+    let button = document.getElementById("dtk10grauBtn");
+
+    if (map.hasLayer(dtk10grauLayer)) {
+        map.removeLayer(dtk10grauLayer);
+        button.classList.remove("active");
+    } else {
+        dtk10grauLayer.addTo(map);
+        button.classList.add("active");
+    }
+}
+
+
+
+	function toggleLayer(layer, buttonId) {
+   	 let button = document.getElementById(buttonId);
+    		if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+        button.classList.remove("active");
+   	 } else {
+        layer.addTo(map);
+        button.classList.add("active");
+  	  }
+	}
+	
+        
+function toggleWMS() {
+    toggleLayer(wmsLayer, "flurstueckeBtn");
+}
+
+function toggleSoilLayer() {
+    toggleLayer(soilLayer, "bodenBtn");
+}
+
+const erosionWasserLegendURL = "https://inspire.brandenburg.de/services/boerosion_wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=wa_gefstufen_rksl&format=image/png";
+const erosionWindLegendURL = "https://inspire.brandenburg.de/services/boerosion_wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=wi_gefstufen&format=image/png";
+
+function toggleErosion_wasser() {
+    toggleLayerWithLegend(erosion_wasser, "wasserErosionBtn", erosionWasserLegendURL, "Wassererosion");
+}
+
+function toggleErosion_wind() {
+    toggleLayerWithLegend(erosion_wind, "windErosionBtn", erosionWindLegendURL, "Winderosion");
+}
+
+function toggleLayerWithLegend(layer, buttonId, legendURL, legendTitle) {
+    let button = document.getElementById(buttonId);
+    let legendContainer = document.getElementById("legendContainer");
+
+    if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+        button.classList.remove("active");
+
+        // Wenn dieser Layer deaktiviert wird, entferne die Legende nur, wenn kein anderer aktiv ist
+        if (legendContainer) {
+            legendContainer.innerHTML = "";
+            legendContainer.style.display = "none";
+        }
+    } else {
+        layer.addTo(map);
+        button.classList.add("active");
+
+        // Legende aktualisieren oder erstellen
+        if (!legendContainer) {
+            legendContainer = document.createElement("div");
+            legendContainer.id = "legendContainer";
+            legendContainer.style.marginTop = "20px";
+            document.getElementById("info").appendChild(legendContainer);
+        }
+
+        legendContainer.innerHTML = `<h3>${legendTitle} - Legende</h3><img src="${legendURL}" alt="Legende ${legendTitle}" style="max-width:100%;">`;
+        legendContainer.style.display = "block";
+    }
+}
+
+function showWeatherInfo(properties) {
+    let infoDiv = document.getElementById("info");
+    
+    // Zuerst die Stationen-Informationen (Stations_id und Stationsname) oben ausgeben
+    let html = `<h2>Niederschlag: vieljährige Mittelwerte 1991 - 2020</h2>`;
+    html += `<p><strong>Stations-ID:</strong> ${properties.Stations_id}</p>`;
+    html += `<p><strong>Stationsname:</strong> ${properties.Stationsname}</p>`;
+    html += `<p><strong>Jahresniederschlag [mm]:</strong> ${properties.Jahr}</p>`;
+    
+    // Dann die Tabelle mit den Monats- und Niederschlagsdaten
+    html += "<table border='1' style='width: 100%; text-align: left;'>";
+    html += "<thead><tr><th>Monat</th><th>Niederschlag in mm</th></tr></thead><tbody>";
+
+    // Durch die Eigenschaften iterieren, aber nur die für die Monate und Niederschlag
+    let keys = Object.keys(properties);
+    let lastRowIndex = keys.length - 1; // Index der letzten Zeile
+    
+    for (let i = 0; i < keys.length; i++) {
+        // Wenn es sich um Stations_id oder Stationsname handelt, überspringen
+        if (keys[i] === "Stations_id" || keys[i] === "Stationsname" || keys[i] === "Jahr") {
+            continue;
+        }
+        
+        // Falls es die letzte Zeile ist, diese fett ausgeben
+        if (i === lastRowIndex) {
+            html += `<tr><th><strong>${keys[i]}</strong></th><td><strong>${properties[keys[i]]}</strong></td></tr>`;
+        } else {
+            html += `<tr><th>${keys[i]}</th><td>${properties[keys[i]]}</td></tr>`;
+        }
+    }
+
+    html += "</tbody></table>";
+    html += "<p>Datenbasis: Deutscher Wetterdienst, Niederschlag_1991-2020 kombiniert mit DWD-Stationsliste</p>";
+    
+    // Den generierten HTML-Inhalt ins "info"-Div einfügen
+    infoDiv.innerHTML = html;
+}
+
+
+	
+function showPolygonInfo(properties) {
+    let polygonDiv = document.getElementById("polygon-info");
+    let xyzValue = properties.Stationsname ? properties.Stationsname : "Kein Wert vorhanden";
+    polygonDiv.innerHTML = `<h2>Polygon-Info</h2><p>Stationsname: ${xyzValue}</p>`;
+}
+    
+    </script>
+</body>
+</html>
