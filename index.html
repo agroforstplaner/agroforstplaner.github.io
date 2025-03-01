@@ -21,7 +21,7 @@
     </style>
 </head>
 <body>
-    <h2>Passwort eingeben</h2>
+    <h2>Agroforstplaner Brandenburg</h2>
     <form id="loginForm">
         <input type="password" id="passwordInput" placeholder="Passwort" required>
         <button type="submit">Einloggen</button>
@@ -30,11 +30,10 @@
     <p id="errorMessage" style="color: red; display: none;">Falsches Passwort, bitte versuche es erneut.</p>
 
     <script>
-        // Passwort aus einer Datei (hier als Beispiel im Code gespeichert)
-        const correctPassword = "1234";  
-
-        // Das Login-Formular-Handling
+        
+          
         const form = document.getElementById("loginForm");
+	const fufu= "1234";
         const passwordInput = document.getElementById("passwordInput");
         const errorMessage = document.getElementById("errorMessage");
 
@@ -42,11 +41,11 @@
             event.preventDefault();
             const enteredPassword = passwordInput.value;
 
-            if (enteredPassword === correctPassword) {
-                // Passwort ist korrekt, Zugriff gewähren
-                window.location.href = "seite.html";  // Weiterleitung zur geschützten Seite
+            if (enteredPassword === fufu) {
+                
+                window.location.href = "seite.html";  
             } else {
-                // Passwort ist falsch
+                
                 errorMessage.style.display = "block";
             }
         });
