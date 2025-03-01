@@ -155,6 +155,7 @@ Es besteht daher ein erhöhtes Risiko, dass staatliche Behörden auf diese Daten
         <div id="controls">
             <button onclick="setOSM()">OSM</button>
             <button onclick="setSatellite()">Satellit</button>
+	<button id="wetterBtn" onclick="toggleWetterLayer()">Wetter</button>
 	    <button id="dtk10grauBtn" onclick="toggleDTK10Grau()">Topographische Karte</button>
             <button id="flurstueckeBtn" onclick="toggleWMS()">Flurstücke</button>
     	    <button id="bodenBtn" onclick="toggleSoilLayer()">Bodenschätzung</button>
@@ -190,6 +191,8 @@ Es besteht daher ein erhöhtes Risiko, dass staatliche Behörden auf diese Daten
         <h2>Größe eingezeichnetes Polygon</h2>
         <p>Fläche: <span id="area">0</span> ha</p>
 	<div id="legendContainer"></div> 
+<div id="info"></div>
+<div id="polygon-info"></div> 
 	<div id="bottom-right-text">© 2025 Marco Donat - Kontakt: marco.donat[at]hnee.de; marco.donat[at]zalf.de</div>
         
     </div>
@@ -364,6 +367,52 @@ var boundaryLayer = L.geoJSON(null, {
     }
 }).addTo(map); // Wird direkt zur Karte hinzugefügt
 
+
+var wetterLayer;
+
+function toggleWetterLayer() {
+    let button = document.getElementById("wetterBtn");
+
+    if (wetterLayer) {
+        if (map.hasLayer(wetterLayer)) {
+            map.removeLayer(wetterLayer);
+            button.classList.remove("active");
+        } else {
+            map.addLayer(wetterLayer);
+            button.classList.add("active");
+        }
+    } else {
+        fetch("data/dwd_bb_niederschlag_bezugszeitraum_1991_2020.geojson")
+            .then(response => response.json())
+            .then(data => {
+                wetterLayer = L.geoJSON(data, {
+                    onEachFeature: function (feature, layer) {
+                        layer.on("click", function () {
+                            showWeatherInfo(feature.properties);
+                            showPolygonInfo(feature.properties);
+                        });
+                    },
+                    pointToLayer: function (feature, latlng) {
+                        return L.circleMarker(latlng, {
+                            radius: 6,
+                            fillColor: "blue",
+                            color: "#000",
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    }
+                }).addTo(map);
+                button.classList.add("active");
+            })
+            .catch(error => console.error("Fehler beim Laden der Wetterdaten:", error));
+    }
+}
+
+
+
+
+
 // GeoJSON-Datei aus dem Ordner "data" laden
 fetch("data/bb_grenzen.geojson")
     .then(response => response.json())
@@ -381,6 +430,10 @@ var dtk10grauLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/mapproxy/dtk10g
     transparent: true,
     attribution: "© GeoBasis-DE/LGB, dl-de/by-2-0"
 });
+
+
+
+
 
 function toggleDTK10Grau() {
     let button = document.getElementById("dtk10grauBtn");
@@ -458,11 +511,22 @@ function toggleLayerWithLegend(layer, buttonId, legendURL, legendTitle) {
 }
 
 
+function showWeatherInfo(properties) {
+    let infoDiv = document.getElementById("info");
+    let html = "<h2>Niederschlag: vieljährige Mittelwerte 1991 - 2020</h2><table border='1' style='width: 100%; text-align: left;'>";
+    for (let key in properties) {
+        html += `<tr><th>${key}</th><td>${properties[key]}</td></tr>`;
+    }
+    html += "</table>";
+html += "<p>Datenbasis: Deutscher Wetterdienst, Niederschlag_1991-2020 kombiniert mit DWD-Stationsliste</p>";
+    infoDiv.innerHTML = html;
 
-//test
-// viel änderungen hier und da
-	
-
+}	
+function showPolygonInfo(properties) {
+    let polygonDiv = document.getElementById("polygon-info");
+    let xyzValue = properties.Stationsname ? properties.Stationsname : "Kein Wert vorhanden";
+    polygonDiv.innerHTML = `<h2>Polygon-Info</h2><p>Stationsname: ${xyzValue}</p>`;
+}
     
     </script>
 </body>
