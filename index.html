@@ -168,7 +168,7 @@ Es besteht daher ein erhöhtes Risiko, dass staatliche Behörden auf diese Daten
     </div>
     <div id="info">
 <div id="polygon-steps">
-    <h3>Plane dein Agroforst</h3>
+    <h3>Plane dein Agroforst in Brandenburg</h3>
     <ol>
         <li><strong>Schritt:</strong> Zoome zu deinem Acker/Flurstück.
             <p class="achtung">⚠ Achtung: Anzeige der Flurstücke und Bodenschätzung erst ab hohem Zoomlevel möglich!</p>
@@ -354,6 +354,25 @@ logPolygonCoordinates();
             attribution: "© Landesamt für Bergbau, Geologie und Rohstoffe Brandenburg, dl-de/by-2-0",
 	    styles: 'default'
         });
+
+// Layer für die GeoJSON-Boundary definieren
+var boundaryLayer = L.geoJSON(null, {
+    style: {
+        color: "red", // Farbe der Begrenzung
+        weight: 3,    // Linienbreite
+        fill: false   // Keine Füllung, nur Umrandung
+    }
+}).addTo(map); // Wird direkt zur Karte hinzugefügt
+
+// GeoJSON-Datei aus dem Ordner "data" laden
+fetch("data/bb_grenzen.geojson")
+    .then(response => response.json())
+    .then(data => {
+        boundaryLayer.addData(data); // Daten in das GeoJSON-Layer laden
+        map.fitBounds(boundaryLayer.getBounds()); // Karte auf die GeoJSON-Grenze zoomen
+    })
+    .catch(error => console.error("Fehler beim Laden der GeoJSON-Datei:", error));
+
 
 
 var dtk10grauLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/mapproxy/dtk10grau/service/wms?", {
