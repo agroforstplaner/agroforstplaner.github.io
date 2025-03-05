@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
@@ -84,7 +85,7 @@ button.active {
                 <label for="orientation">Ausrichtung (°):</label>
             </div>
             <div class="control-input">
-                <input type="range" id="orientation" value="0" min="0" max="180" step="2">
+                <input type="range" id="orientation" value="0" min="0" max="180" step="1">
                 <span id="orientationValue">0</span> °
             </div>
 
@@ -156,16 +157,15 @@ button.active {
             alert("Kein Polygon gefunden!");
         }
 
-        let stripGeoJSON = {
-            type: "FeatureCollection",
-            features: []
-        };
+
+             
 
         function generateStrips() {
             stripGeoJSON = { type: "FeatureCollection", features: [] };
+            geojsonPoints = {type: "FeatureCollection", features: [] };
             stripLayer.clearLayers();
 
-            let pointGeoJSON = { type: "FeatureCollection", features: [] };
+            
 
 
             let width = parseFloat(document.getElementById('stripWidth').value);
@@ -240,6 +240,28 @@ button.active {
                             }
 
                             evenlySpacedPoints.push(...segmentPoints);
+
+                            //segmentPoints.forEach(point => {
+                             //   geojsonPoints.features.push(turf.feature(point.geometry.coordinates)); // Füge Punkt als GeoJSON-Feature hinzu
+                            //});
+                            let idCounter = 1
+                            segmentPoints.forEach(point => {
+                                // Erstelle ein GeoJSON-Feature vom Typ "Point" mit den Koordinaten des Punktes
+                                let feature = {
+                                    type: "Feature",
+                                    geometry: {
+                                        type: "Point", // Hier wird der Typ des Features als "Point" festgelegt
+                                        coordinates: point.geometry.coordinates // Die Koordinaten des Punktes
+                                    },
+                                    properties: {}, // Optional: Hier könntest du zusätzliche Eigenschaften hinzufügen
+                                    id: idCounter
+                                };
+
+                                // Füge das Feature der GeoJSON-FeatureCollection hinzu
+                                geojsonPoints.features.push(feature);
+                                idCounter++;
+                            });
+                            
                         }
                     }
 
@@ -248,6 +270,7 @@ button.active {
                     });
                 }
             });
+            
 
 
             points.forEach(point => {
@@ -278,7 +301,7 @@ button.active {
                 L.geoJSON(point, {
                     pointToLayer: function (feature, latlng) {
                         return L.circleMarker(latlng, {
-                            radius: 3,
+                            radius: 5,
                             fillColor: '#33FF57',
                             color: '#fff',
                             weight: 1,
@@ -289,11 +312,12 @@ button.active {
                 }).addTo(stripLayer);
             });
 
-
-
+           
+            
 
             // Berechne die Gesamtzahl der Punkte
             let totalPoints = evenlySpacedPoints.length;
+            
             // Berechne die Gesamtlänge der Linien
             let totalLineLength = lineSegments.reduce((sum, line) => {
                 return sum + turf.length(line, { units: 'meters' });
@@ -450,16 +474,30 @@ function toggleLayerWithLegend(layer, buttonId, legendURL, legendTitle) {
 }
 
 
-// Funktion zum Download der GeoJSON-Datei
         function downloadGeoJSON() {
-            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(stripGeoJSON));
-            let downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "streifen.geojson");
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
+            // Funktion zum Erstellen und Herunterladen einer GeoJSON-Datei
+            function saveAsGeoJSON(data, filename) {
+                let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+                let downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", filename);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            }
+
+
+            // Datei für die Streifen speichern
+            if (stripGeoJSON) {
+                saveAsGeoJSON(stripGeoJSON, "streifen.geojson");
+            }
+
+            // Datei für die Punkte speichern
+            if (geojsonPoints) {
+                saveAsGeoJSON(geojsonPoints, "punkte.geojson");
+            }
         }
+
 L.control.scale({
     position: 'bottomleft',
     metric: true,
