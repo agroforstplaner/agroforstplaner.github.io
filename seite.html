@@ -12,7 +12,7 @@
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
     <script src="https://unpkg.com/georaster"></script>
     <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
-    <style>
+<style>
 
 
 .modal {
@@ -106,6 +106,10 @@ button {
     font-size: 16px;
     margin-top: 5px;
 }
+    .highlight-button {
+        border: 3px solid red !important;
+        box-shadow: 0 0 10px red;
+    }
     </style>
 </head>
 
@@ -129,6 +133,7 @@ button {
         alert("Nur erforderliche Cookies wurden akzeptiert.");
         closeModal();
     }
+
 </script>
 
 <body>
@@ -155,13 +160,13 @@ Es besteht daher ein erhöhtes Risiko, dass staatliche Behörden auf diese Daten
         <div id="controls">
             <button onclick="setOSM()">OSM</button>
             <button onclick="setSatellite()">Satellit</button>
-	<button id="wetterBtn" onclick="toggleWetterLayer()">Wetter</button>
-	    <button id="dtk10grauBtn" onclick="toggleDTK10Grau()">Topographische Karte</button>
+	        <button id="wetterBtn" onclick="toggleWetterLayer()">Wetter</button>
+	        <button id="dtk10grauBtn" onclick="toggleDTK10Grau()">Topographische Karte</button>
             <button id="flurstueckeBtn" onclick="toggleWMS()">Flurstücke</button>
     	    <button id="bodenBtn" onclick="toggleSoilLayer()">Bodenschätzung</button>
     	    <button id="windErosionBtn" onclick="toggleErosion_wind()">Winderosion</button>
     	    <button id="wasserErosionBtn" onclick="toggleErosion_wasser()">Wassererosion</button>
-	    <button onclick="downloadPolygon()">Download JSON</button>
+	        <button onclick="downloadPolygon()">Download JSON</button>
             <input type="file" id="upload" accept=".json,.geojson" onchange="uploadPolygon(event)">
             <button id="agroforstBtn" onclick="openAgroforstPage()" disabled>Agroforst planen</button>
         </div>
@@ -238,11 +243,20 @@ function logPolygonCoordinates() {
         map.on(L.Draw.Event.CREATED, function (event) {
             drawnItems.clearLayers(); // Vorherige Polygone entfernen
             var layer = event.layer;
+            if (layer instanceof L.Polygon) {
+                document.getElementById("agroforstBtn").classList.add("highlight-button");
+            }
             drawnItems.addLayer(layer);
+
+            map.on("draw:deleted", function () {
+                if (drawnItems.getLayers().length === 0) {
+                    document.getElementById("agroforstBtn").classList.remove("highlight-button");
+                }
+            });
 
             var area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) / 10000;
             document.getElementById('area').textContent = area.toFixed(2);
-logPolygonCoordinates(); 
+            logPolygonCoordinates(); 
             document.getElementById("agroforstBtn").disabled = false;
         });
 
@@ -314,12 +328,16 @@ logPolygonCoordinates();
             map.eachLayer(layer => map.removeLayer(layer));
             osmLayer.addTo(map);
             drawnItems.addTo(map);
+            boundaryLayer.addTo(map);
+            boundaryLayer.bringToFront();
         }
 
         function setSatellite() {
             map.eachLayer(layer => map.removeLayer(layer));
             satelliteLayer.addTo(map);
             drawnItems.addTo(map);
+            boundaryLayer.addTo(map);
+            boundaryLayer.bringToFront();
         }
 
         var wmsLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/ows/alkis_wms?", {
@@ -368,7 +386,8 @@ var boundaryLayer = L.geoJSON(null, {
 }).addTo(map); // Wird direkt zur Karte hinzugefügt
 
 
-var wetterLayer;
+        var wetterLayer;
+        var lastClickedLayer = null; // Speichert den zuletzt geklickten Punkt
 
 function toggleWetterLayer() {
     let button = document.getElementById("wetterBtn");
@@ -388,6 +407,13 @@ function toggleWetterLayer() {
                 wetterLayer = L.geoJSON(data, {
                     onEachFeature: function (feature, layer) {
                         layer.on("click", function () {
+                            if (lastClickedLayer) {
+                                lastClickedLayer.setStyle({ fillColor: "blue" }); // Setzt vorherigen Punkt zurück
+                            }
+
+                            layer.setStyle({ fillColor: "yellow" }); // Neuer Punkt wird gelb
+                            lastClickedLayer = layer; // Speichert den neuen Punkt
+
                             showWeatherInfo(feature.properties);
                             showPolygonInfo(feature.properties);
                         });
