@@ -8,61 +8,65 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <style>
-.leaflet-control-scale {
-    position: absolute !important;
-    bottom: 10px !important;
-    left: 10px !important;
-    font-size: 18px !important;
-    background: rgba(255, 255, 255, 0.8);
-    padding: 0px;
-    border-radius: 5px;
-}
+        .leaflet-control-scale {
+            position: absolute !important;
+            bottom: 10px !important;
+            left: 10px !important;
+            font-size: 18px !important;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 0px;
+            border-radius: 5px;
+        }
+
         body {
             display: flex;
             height: 100vh;
             margin: 0;
         }
+
         #map-container {
             flex: 2;
             height: 100vh;
         }
+
         #map {
             height: 100%;
         }
+
         #controls {
             flex: 1;
             padding: 10px;
             background: #f8f8f8;
             overflow-y: auto;
         }
-#bottom-right-text {
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    background: rgba(255, 255, 255, 0.8);
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 14px;
-    font-family: Arial, sans-serif;
-	}
+
+        #bottom-right-text {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+        }
 
 
-button.active {
-    background-color: #4CAF50; /* Grün */
-    color: white;
-}
-
+        button.active {
+            background-color: #4CAF50; /* Grün */
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div id="map-container">
         <div id="map"></div>
     </div>
-<div id="controls">
+    <div id="controls">
         <h3>Einstellungen</h3>
-        
+
         <!-- Grid Layout für die Steuerelemente -->
         <div class="control-grid">
             <div class="control-text">
@@ -74,7 +78,7 @@ button.active {
             </div>
 
             <div class="control-text">
-                <label for="stripSpacing">Abstand (m):</label>
+                <label for="stripSpacing">Abstand Streifen (m):</label>
             </div>
             <div class="control-input">
                 <input type="range" id="stripSpacing" value="24" min="1" max="100" step="1">
@@ -97,7 +101,7 @@ button.active {
                 <span id="headlandValue">12</span> m
             </div>
 
- 	    <div class="control-text">
+            <div class="control-text">
                 <label for="paralelshift">Streifen verschieben (m):</label>
             </div>
             <div class="control-input">
@@ -106,34 +110,34 @@ button.active {
             </div>
 
 
-<div class="control-text">
-    <label for="treeSpacing">Abstand Bäume (m):</label>
-</div>
-<div class="control-input">
-    <input type="range" id="treeSpacing" value="10" min="0.5" max="30" step="0.5">
-    <span id="treeSpacingValue">10</span> m
-</div>
+            <div class="control-text">
+                <label for="treeSpacing">Abstand Bäume (m):</label>
+            </div>
+            <div class="control-input">
+                <input type="range" id="treeSpacing" value="10" min="0.5" max="30" step="0.5">
+                <span id="treeSpacingValue">10</span> m
+            </div>
 
 
         </div>
 
         <!-- Buttons -->
         <button onclick="generateStrips()">Streifen generieren</button>
-	
-	<button id="dtk10grauBtn" onclick="toggleDTK10Grau()">Topographische Karte</button>
 
-    	<button id="windErosionBtn" onclick="toggleErosion_wind()">Winderosion</button>
-    	<button id="wasserErosionBtn" onclick="toggleErosion_wasser()">Wassererosion</button>
+        <button id="dtk10grauBtn" onclick="toggleDTK10Grau()">Topographische Karte</button>
+
+        <button id="windErosionBtn" onclick="toggleErosion_wind()">Winderosion</button>
+        <button id="wasserErosionBtn" onclick="toggleErosion_wasser()">Wassererosion</button>
         <button id="downloadButton" style="display:none;" onclick="downloadGeoJSON()">Download Streifen als GeoJSON</button>
 
         <h4>Flächen</h4>
         <p id="totalArea">Gesamtfläche: </p>
         <p id="stripsArea">Streifenfläche: </p>
         <p id="remainingArea">Verbleibende Fläche: </p>
-	<p id="pointNumber">Anzahl Bäume: </p>
-	<p id="totalLength">Gesmatlänge Baumreihen: </p>
-	<div id="legendContainer"></div> 
-<div id="bottom-right-text">© 2025 Marco Donat - Kontakt: marco.donat[at]hnee.de; marco.donat[at]zalf.de</div>
+        <p id="pointNumber">Anzahl Bäume: </p>
+        <p id="totalLength">Gesmatlänge Baumreihen: </p>
+        <div id="legendContainer"></div>
+        <div id="bottom-right-text">© 2025 Dr. Marco Donat - Kontakt:marco.donat[at]hnee.de</div>
 
 
     </div>
@@ -144,7 +148,7 @@ button.active {
         L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
-        
+
         var polygonLayer;
         var stripLayer = L.layerGroup().addTo(map);
 
@@ -158,14 +162,14 @@ button.active {
         }
 
 
-             
+
 
         function generateStrips() {
             stripGeoJSON = { type: "FeatureCollection", features: [] };
-            geojsonPoints = {type: "FeatureCollection", features: [] };
+            geojsonPoints = { type: "FeatureCollection", features: [] };
             stripLayer.clearLayers();
 
-            
+
 
 
             let width = parseFloat(document.getElementById('stripWidth').value);
@@ -205,13 +209,13 @@ button.active {
                 lines.push(parallelLine);
             }
 
-	        let rotatedLines = lines.map(line => {
-    		let rotated = turf.transformRotate(line, angle, { pivot: [centerX, centerY] });
-  		        return turf.transformTranslate(rotated, paralelshift, angle, { units: 'meters' });
-		    });
+            let rotatedLines = lines.map(line => {
+                let rotated = turf.transformRotate(line, angle, { pivot: [centerX, centerY] });
+                return turf.transformTranslate(rotated, paralelshift, angle, { units: 'meters' });
+            });
 
-		    // Baumabstand aus dem Regler holen
-	     
+            // Baumabstand aus dem Regler holen
+
 
             let points = [];
             let lineSegments = [];
@@ -242,7 +246,7 @@ button.active {
                             evenlySpacedPoints.push(...segmentPoints);
 
                             //segmentPoints.forEach(point => {
-                             //   geojsonPoints.features.push(turf.feature(point.geometry.coordinates)); // Füge Punkt als GeoJSON-Feature hinzu
+                            //   geojsonPoints.features.push(turf.feature(point.geometry.coordinates)); // Füge Punkt als GeoJSON-Feature hinzu
                             //});
                             let idCounter = 1
                             segmentPoints.forEach(point => {
@@ -261,7 +265,7 @@ button.active {
                                 geojsonPoints.features.push(feature);
                                 idCounter++;
                             });
-                            
+
                         }
                     }
 
@@ -270,7 +274,7 @@ button.active {
                     });
                 }
             });
-            
+
 
 
             points.forEach(point => {
@@ -278,8 +282,8 @@ button.active {
                     pointToLayer: function (feature, latlng) {
                         return L.circleMarker(latlng, {
                             radius: 2,
-                            fillColor: '#FF5733',
-                            color: '#fff',
+                            fillColor: '#3633ff',
+                            color: 'black',
                             weight: 1,
                             opacity: 1,
                             fillOpacity: 0.8
@@ -302,8 +306,8 @@ button.active {
                     pointToLayer: function (feature, latlng) {
                         return L.circleMarker(latlng, {
                             radius: 5,
-                            fillColor: '#33FF57',
-                            color: '#fff',
+                            fillColor: 'blue',
+                            color: 'black',
                             weight: 1,
                             opacity: 1,
                             fillOpacity: 0.8
@@ -312,19 +316,19 @@ button.active {
                 }).addTo(stripLayer);
             });
 
-           
-            
+
+
 
             // Berechne die Gesamtzahl der Punkte
             let totalPoints = evenlySpacedPoints.length;
-            
+
             // Berechne die Gesamtlänge der Linien
             let totalLineLength = lineSegments.reduce((sum, line) => {
                 return sum + turf.length(line, { units: 'meters' });
             }, 0);
 
 
-             
+
 
 
 
@@ -342,14 +346,14 @@ button.active {
             });
 
             document.getElementById('totalArea').innerText = "Gesamtfläche: " + (totalArea / 10000).toFixed(2) + " ha";
-            document.getElementById('stripsArea').innerText = "Streifenfläche: " + (totalStripsArea / 10000).toFixed(2) + " ha" + "  ( " + ((totalStripsArea/totalArea)*100).toFixed(1) + " %)";
+            document.getElementById('stripsArea').innerText = "Streifenfläche: " + (totalStripsArea / 10000).toFixed(2) + " ha" + "  ( " + ((totalStripsArea / totalArea) * 100).toFixed(1) + " %)";
             document.getElementById('remainingArea').innerText = "Verbleibende Fläche: " + ((totalArea - totalStripsArea) / 10000).toFixed(2) + " ha";
-            document.getElementById('pointNumber').innerText = "Anzahl Bäume: " +totalPoints ;
-            document.getElementById('totalLength').innerText = "Gesmatlänge Baumreihen: " +totalLineLength.toFixed(0) + " m" ;
+            document.getElementById('pointNumber').innerText = "Anzahl Bäume: " + totalPoints;
+            document.getElementById('totalLength').innerText = "Gesmatlänge Baumreihen: " + totalLineLength.toFixed(0) + " m";
 
 
-		
-		
+
+
 
 
             if (stripGeoJSON.features.length > 0) {
@@ -362,116 +366,116 @@ button.active {
 
 
         // Event-Listener für Schieberegler: Jede Änderung führt sofort zu einer Ausführung der Funktion generateStrips()
-        document.getElementById('stripWidth').addEventListener('input', function() {
+        document.getElementById('stripWidth').addEventListener('input', function () {
             document.getElementById('stripWidthValue').textContent = this.value;
             generateStrips();  // Aufruf der Funktion, die Streifen generiert
         });
 
-        document.getElementById('stripSpacing').addEventListener('input', function() {
+        document.getElementById('stripSpacing').addEventListener('input', function () {
             document.getElementById('stripSpacingValue').textContent = this.value;
             generateStrips();  // Aufruf der Funktion, die Streifen generiert
         });
 
-        document.getElementById('orientation').addEventListener('input', function() {
+        document.getElementById('orientation').addEventListener('input', function () {
             document.getElementById('orientationValue').textContent = this.value;
             generateStrips();  // Aufruf der Funktion, die Streifen generiert
         });
 
-        document.getElementById('headland').addEventListener('input', function() {
+        document.getElementById('headland').addEventListener('input', function () {
             document.getElementById('headlandValue').textContent = this.value;
             generateStrips();  // Aufruf der Funktion, die Streifen generiert
         });
 
-	    document.getElementById('paralelshift').addEventListener('input', function() {
-    	    document.getElementById('paralelshiftValue').textContent = this.value;
-    	    generateStrips();
-	    });
+        document.getElementById('paralelshift').addEventListener('input', function () {
+            document.getElementById('paralelshiftValue').textContent = this.value;
+            generateStrips();
+        });
 
-        document.getElementById('treeSpacing').addEventListener('input', function() {
+        document.getElementById('treeSpacing').addEventListener('input', function () {
             document.getElementById('treeSpacingValue').textContent = this.value;
             generateStrips();
         });
 
 
-var dtk10grauLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/mapproxy/dtk10grau/service/wms?", {
-    layers: 'bb_dtk10_grau',
-    format: 'image/png',
-    transparent: true,
-    attribution: "© Geobasis-BB"
-});
+        var dtk10grauLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/mapproxy/dtk10grau/service/wms?", {
+            layers: 'bb_dtk10_grau',
+            format: 'image/png',
+            transparent: true,
+            attribution: "© Geobasis-BB"
+        });
 
 
 
 
-//WMS
-var erosion_wind = L.tileLayer.wms("https://inspire.brandenburg.de/services/boerosion_wms?request=GetCapabilities&service=WMS", {
+        //WMS
+        var erosion_wind = L.tileLayer.wms("https://inspire.brandenburg.de/services/boerosion_wms?request=GetCapabilities&service=WMS", {
             layers: 'wi_gefstufen',
             format: 'image/png',
             transparent: true,
             crs: L.CRS.EPSG25833,
             attribution: "© Landesamt für Bergbau, Geologie und Rohstoffe Brandenburg, dl-de/by-2-0",
-	    styles: 'default'
+            styles: 'default'
         });
-var erosion_wasser = L.tileLayer.wms("https://inspire.brandenburg.de/services/boerosion_wms?request=GetCapabilities&service=WMS", {
+        var erosion_wasser = L.tileLayer.wms("https://inspire.brandenburg.de/services/boerosion_wms?request=GetCapabilities&service=WMS", {
             layers: 'wa_gefstufen_rksl',
             format: 'image/png',
             transparent: true,
             crs: L.CRS.EPSG25833,
             attribution: "© Landesamt für Bergbau, Geologie und Rohstoffe Brandenburg, dl-de/by-2-0",
-	    styles: 'default'
+            styles: 'default'
         });
 
 
-const erosionWasserLegendURL = "https://inspire.brandenburg.de/services/boerosion_wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=wa_gefstufen_rksl&format=image/png";
-const erosionWindLegendURL = "https://inspire.brandenburg.de/services/boerosion_wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=wi_gefstufen&format=image/png";
+        const erosionWasserLegendURL = "https://inspire.brandenburg.de/services/boerosion_wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=wa_gefstufen_rksl&format=image/png";
+        const erosionWindLegendURL = "https://inspire.brandenburg.de/services/boerosion_wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=wi_gefstufen&format=image/png";
 
-function toggleDTK10Grau() {
-    let button = document.getElementById("dtk10grauBtn");
+        function toggleDTK10Grau() {
+            let button = document.getElementById("dtk10grauBtn");
 
-    if (map.hasLayer(dtk10grauLayer)) {
-        map.removeLayer(dtk10grauLayer);
-        button.classList.remove("active");
-    } else {
-        dtk10grauLayer.addTo(map);
-        button.classList.add("active");
-    }
-}
-
-function toggleErosion_wasser() {
-    toggleLayerWithLegend(erosion_wasser, "wasserErosionBtn", erosionWasserLegendURL, "Wassererosion");
-}
-
-function toggleErosion_wind() {
-    toggleLayerWithLegend(erosion_wind, "windErosionBtn", erosionWindLegendURL, "Winderosion");
-}
-
-function toggleLayerWithLegend(layer, buttonId, legendURL, legendTitle) {
-    let button = document.getElementById(buttonId);
-    let legendContainer = document.getElementById("legendContainer");
-
-    if (map.hasLayer(layer)) {
-        map.removeLayer(layer);
-        button.classList.remove("active");
-
-        if (legendContainer) {
-            legendContainer.innerHTML = "";
-            legendContainer.style.display = "none";
-        }
-    } else {
-        layer.addTo(map);
-        button.classList.add("active");
-
-        if (!legendContainer) {
-            legendContainer = document.createElement("div");
-            legendContainer.id = "legendContainer";
-            legendContainer.style.marginTop = "20px";
-            document.getElementById("controls").appendChild(legendContainer);
+            if (map.hasLayer(dtk10grauLayer)) {
+                map.removeLayer(dtk10grauLayer);
+                button.classList.remove("active");
+            } else {
+                dtk10grauLayer.addTo(map);
+                button.classList.add("active");
+            }
         }
 
-        legendContainer.innerHTML = `<h3>${legendTitle} - Legende (LBGR)</h3><img src="${legendURL}" alt="Legende ${legendTitle}" style="max-width:100%;">`;
-        legendContainer.style.display = "block";
-    }
-}
+        function toggleErosion_wasser() {
+            toggleLayerWithLegend(erosion_wasser, "wasserErosionBtn", erosionWasserLegendURL, "Wassererosion");
+        }
+
+        function toggleErosion_wind() {
+            toggleLayerWithLegend(erosion_wind, "windErosionBtn", erosionWindLegendURL, "Winderosion");
+        }
+
+        function toggleLayerWithLegend(layer, buttonId, legendURL, legendTitle) {
+            let button = document.getElementById(buttonId);
+            let legendContainer = document.getElementById("legendContainer");
+
+            if (map.hasLayer(layer)) {
+                map.removeLayer(layer);
+                button.classList.remove("active");
+
+                if (legendContainer) {
+                    legendContainer.innerHTML = "";
+                    legendContainer.style.display = "none";
+                }
+            } else {
+                layer.addTo(map);
+                button.classList.add("active");
+
+                if (!legendContainer) {
+                    legendContainer = document.createElement("div");
+                    legendContainer.id = "legendContainer";
+                    legendContainer.style.marginTop = "20px";
+                    document.getElementById("controls").appendChild(legendContainer);
+                }
+
+                legendContainer.innerHTML = `<h3>${legendTitle} - Legende (LBGR)</h3><img src="${legendURL}" alt="Legende ${legendTitle}" style="max-width:100%;">`;
+                legendContainer.style.display = "block";
+            }
+        }
 
 
         function downloadGeoJSON() {
@@ -498,12 +502,12 @@ function toggleLayerWithLegend(layer, buttonId, legendURL, legendTitle) {
             }
         }
 
-L.control.scale({
-    position: 'bottomleft',
-    metric: true,
-    imperial: false,
-    maxWidth: 200 // Größerer Maßstab mit mehreren Segmenten
-}).addTo(map);
+        L.control.scale({
+            position: 'bottomleft',
+            metric: true,
+            imperial: false,
+            maxWidth: 200 // Größerer Maßstab mit mehreren Segmenten
+        }).addTo(map);
     </script>
 </body>
 </html>

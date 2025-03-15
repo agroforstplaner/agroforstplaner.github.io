@@ -173,33 +173,40 @@ Es besteht daher ein erhöhtes Risiko, dass staatliche Behörden auf diese Daten
         <div id="map"></div>
     </div>
     <div id="info">
-<div id="polygon-steps">
-    <h3>Plane dein Agroforst in Brandenburg</h3>
-    <ol>
-        <li><strong>Schritt:</strong> Zoome zu deinem Acker/Flurstück.
-            <p class="achtung">⚠ Achtung: Anzeige der Flurstücke und Bodenschätzung erst ab hohem Zoomlevel möglich!</p>
-        </li>
-        <li><strong>Schritt:</strong> Zeichne deine Fläche mit dem Polygon-Knopf links in der Karte.
-            <p class="achtung">⚠ Achtung: Löcher (Gräben/Sölle) können noch nicht eingezeichnet werden).</p>
-        </li>
-        <li><strong>Schritt:</strong> Aktiviere die Karten der potenziellen Winderosion, Wassererosion,
-			<br> Topografische Karte oder Bodenschätzung um einen Eindruck über die
-			<br> standörtliche Heterogenität zu bekommen.
-            
-        </li>
-        <li><strong>Schritt:</strong> Dück auf den Knopf "Agroforst planen".
-            
-        </li>
-    </ol>
-</div>
+        <div id="polygon-steps">
+            <h3>Plane dein Agroforst in Brandenburg</h3>
+            <ol>
+                <li>
+                    <strong>Schritt:</strong> Zoome zu deinem Acker/Flurstück.
+                    <p class="achtung">⚠ Achtung: Anzeige der Flurstücke und Bodenschätzung erst ab hohem Zoomlevel möglich!</p>
+                </li>
+                <li>
+                    <strong>Schritt:</strong> Zeichne deine Fläche mit dem Polygon-Knopf links in der Karte.
+                    <p class="achtung">⚠ Achtung: Löcher (Gräben/Sölle) können noch nicht eingezeichnet werden).</p>
+                </li>
+                <li>
+                    <strong>Schritt:</strong> Aktiviere die Karten der potenziellen Winderosion, Wassererosion,
+                    <br> Topografische Karte oder Bodenschätzung um einen Eindruck über die
+                    <br> standörtliche Heterogenität zu bekommen.
+
+                </li>
+                <li>
+                    <strong>Schritt:</strong> Dück auf den Knopf "Agroforst planen".
+
+                </li>
+            </ol>
+        </div>
 
         <h2>Größe eingezeichnetes Polygon</h2>
         <p>Fläche: <span id="area">0</span> ha</p>
-	<div id="legendContainer"></div> 
-<div id="info"></div>
-<div id="polygon-info"></div> 
-	<div id="bottom-right-text">© 2025 Marco Donat - Kontakt: marco.donat[at]hnee.de; marco.donat[at]zalf.de</div>
+        <div id="legendContainer"></div>
+
+        <div id="info"></div>
+        <div id="polygon-info"></div>
+        <div id="output"></div>
+        <div id="bottom-right-text">© 2025 Dr. Marco Donat - Kontakt:marco.donat[at]hnee.de</div>
         
+
     </div>
 	
 
@@ -415,7 +422,7 @@ function toggleWetterLayer() {
                             lastClickedLayer = layer; // Speichert den neuen Punkt
 
                             showWeatherInfo(feature.properties);
-                            showPolygonInfo(feature.properties);
+                            
                         });
                     },
                     pointToLayer: function (feature, latlng) {
@@ -536,51 +543,71 @@ function toggleLayerWithLegend(layer, buttonId, legendURL, legendTitle) {
     }
 }
 
-function showWeatherInfo(properties) {
-    let infoDiv = document.getElementById("info");
-    
-    // Zuerst die Stationen-Informationen (Stations_id und Stationsname) oben ausgeben
-    let html = `<h2>Niederschlag: vieljährige Mittelwerte 1991 - 2020</h2>`;
-    html += `<p><strong>Stations-ID:</strong> ${properties.Stations_id}</p>`;
-    html += `<p><strong>Stationsname:</strong> ${properties.Stationsname}</p>`;
-    html += `<p><strong>Jahresniederschlag [mm]:</strong> ${properties.Jahr}</p>`;
-    
-    // Dann die Tabelle mit den Monats- und Niederschlagsdaten
-    html += "<table border='1' style='width: 100%; text-align: left;'>";
-    html += "<thead><tr><th>Monat</th><th>Niederschlag in mm</th></tr></thead><tbody>";
+        function showWeatherInfo(properties) {
+            let html = `<h2>Niederschlag: vieljährige Mittelwerte 1991 - 2020</h2>`;
+            html += `<p>Datenbasis: Deutscher Wetterdienst, Niederschlag_1991-2020 kombiniert mit DWD-Stationsliste</p>`;
+            html += `<p><strong>Stationsname:</strong> ${properties.Stationsname}</p>`;
+            html += `<p><strong>Jahresniederschlag [mm]:</strong> ${properties.Jahr}</p>`;
 
-    // Durch die Eigenschaften iterieren, aber nur die für die Monate und Niederschlag
-    let keys = Object.keys(properties);
-    let lastRowIndex = keys.length - 1; // Index der letzten Zeile
-    
-    for (let i = 0; i < keys.length; i++) {
-        // Wenn es sich um Stations_id oder Stationsname handelt, überspringen
-        if (keys[i] === "Stations_id" || keys[i] === "Stationsname" || keys[i] === "Jahr") {
-            continue;
-        }
-        
-        // Falls es die letzte Zeile ist, diese fett ausgeben
-        if (i === lastRowIndex) {
-            html += `<tr><th><strong>${keys[i]}</strong></th><td><strong>${properties[keys[i]]}</strong></td></tr>`;
-        } else {
-            html += `<tr><th>${keys[i]}</th><td>${properties[keys[i]]}</td></tr>`;
-        }
-    }
+            // HTML in das entsprechende Element einfügen
+            document.getElementById("output").innerHTML = html;
 
-    html += "</tbody></table>";
-    html += "<p>Datenbasis: Deutscher Wetterdienst, Niederschlag_1991-2020 kombiniert mit DWD-Stationsliste</p>";
-    
-    // Den generierten HTML-Inhalt ins "info"-Div einfügen
-    infoDiv.innerHTML = html;
-}
+
+            let infoDiv = document.getElementById("info");
+
+            // Falls die Tabelle bereits existiert, vorher entfernen
+            let existingTable = document.getElementById("weatherTable");
+            if (existingTable) {
+                existingTable.remove();
+            }
+
+            let table = document.createElement("table");
+            table.id = "weatherTable";
+            table.style.marginTop = "10px";
+            table.style.borderCollapse = "collapse";
+            table.style.width = "100%";
+
+            let thead = document.createElement("thead");
+            let headerRow = document.createElement("tr");
+            ["Parameter", "Wert"].forEach(text => {
+                let th = document.createElement("th");
+                th.textContent = text;
+                th.style.border = "1px solid black";
+                th.style.padding = "5px";
+                th.style.textAlign = "left";
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+
+            let tbody = document.createElement("tbody");
+            Object.entries(properties).forEach(([key, value]) => {
+                let row = document.createElement("tr");
+
+                let keyCell = document.createElement("td");
+                keyCell.textContent = key;
+                keyCell.style.border = "1px solid black";
+                keyCell.style.padding = "5px";
+
+                let valueCell = document.createElement("td");
+                valueCell.textContent = value;
+                valueCell.style.border = "1px solid black";
+                valueCell.style.padding = "5px";
+
+                row.appendChild(keyCell);
+                row.appendChild(valueCell);
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(thead);
+            table.appendChild(tbody);
+
+            // Die Tabelle wird unterhalb der Polygon-Info eingefügt
+            infoDiv.appendChild(table);
+        }
 
 
 	
-function showPolygonInfo(properties) {
-    let polygonDiv = document.getElementById("polygon-info");
-    let xyzValue = properties.Stationsname ? properties.Stationsname : "Kein Wert vorhanden";
-    polygonDiv.innerHTML = `<h2>Polygon-Info</h2><p>Stationsname: ${xyzValue}</p>`;
-}
+
     
     </script>
 </body>
