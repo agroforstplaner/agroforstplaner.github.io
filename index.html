@@ -8,32 +8,74 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            margin-top: 20%;
+            margin: 0;
+            background-color: #ffffff;
         }
+
+        .hero {
+            background-image: url('data/AF_Bild.JPG');
+            background-size: cover;
+            background-position: center;
+            height: 300px;
+            width: 100%;
+        }
+
+        h2 {
+            margin-top: 30px;
+        }
+
         input {
             padding: 10px;
             font-size: 16px;
+            margin-top: 20px;
         }
+
         button {
             padding: 10px 20px;
             font-size: 16px;
+            margin-top: 10px;
+        }
+
+        p {
+            margin-top: 20px;
+            padding: 0 20px;
+        }
+
+        #errorMessage {
+            color: red;
+            display: none;
+        }
+
+        .info {
+            font-size: 0.9em;
+            color: gray;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
+    <div class="hero"></div>
+
     <h2>Agroforstplaner Brandenburg</h2>
+
     <form id="loginForm">
         <input type="password" id="passwordInput" placeholder="Passwort" required>
+        <br>
         <button type="submit">Einloggen</button>
     </form>
 
-    <p id="errorMessage" style="color: red; display: none;">Falsches Passwort, bitte versuche es erneut.</p>
+    <p id="errorMessage">Falsches Passwort, bitte versuche es erneut.</p>
+
+    <p>Du möchtest Zugang zum Agroforstplaner erhalten?<br>
+    Schreib uns eine E-Mail an <a href="mailto:marco.donat@hnee.de">marco.donat@hnee.de</a>, und wir senden dir das Passwort zu.</p>
+
+    <p class="info">
+        Mit dem Versand deiner E-Mail erklärst du dich einverstanden, dass wir deine Adresse speichern und dich künftig zu Veranstaltungen oder Updates rund um den Agroforstplaner informieren dürfen. Du kannst dem jederzeit per Mail widersprechen.
+    </p>
 
     <script>
-        
-          
         const form = document.getElementById("loginForm");
-	const fufu= "1234";
+        const fufu = "agroforstplaner2025";
         const passwordInput = document.getElementById("passwordInput");
         const errorMessage = document.getElementById("errorMessage");
 
@@ -42,12 +84,11 @@
             const enteredPassword = passwordInput.value;
 
             if (enteredPassword === fufu) {
-                
                 window.location.href = "seite.html";  
             } else {
-                
                 errorMessage.style.display = "block";
             }
         });
     </script>
 </body>
+</html>
