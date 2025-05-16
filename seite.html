@@ -310,38 +310,84 @@ function logPolygonCoordinates() {
         }
 
         function uploadPolygon(event) {
-            var file = event.target.files[0];
+    const file = event.target.files[0];
+    if (!file) {
+        alert("Keine Datei ausgewählt!");
+        return;
+    }
 
-            if (!file) {
-                alert("Keine Datei ausgewählt!");
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        try {
+            const rawData = JSON.parse(e.target.result);
+            let geometry;
+
+            // Fallback: prüfe, ob wir direkt eine Geometrie erhalten
+            if (rawData.type === "Polygon" || rawData.type === "MultiPolygon") {
+                geometry = rawData;
+            }
+
+            // Einzelnes Feature
+            else if (rawData.type === "Feature") {
+                geometry = rawData.geometry;
+            }
+
+            // FeatureCollection
+            else if (rawData.type === "FeatureCollection" && rawData.features.length > 0) {
+                geometry = rawData.features[0].geometry;
+            }
+
+            // Ungültig?
+            if (!geometry || !geometry.type || !geometry.coordinates) {
+                alert("Ungültiges GeoJSON: keine gültige Geometrie gefunden.");
                 return;
             }
 
-            var reader = new FileReader();
+            // Falls MultiPolygon → in Polygon umwandeln (nur erstes Polygon verwenden)
+            if (geometry.type === "MultiPolygon") {
+                geometry = {
+                    type: "Polygon",
+                    coordinates: geometry.coordinates[0]
+                };
+            }
 
-            reader.onload = function(e) {
-                try {
-                    var geojson = JSON.parse(e.target.result);
-
-                    if (geojson.type !== "FeatureCollection" || !geojson.features) {
-                        alert("Ungültiges GeoJSON-Format!");
-                        return;
+            // Finales Format erzeugen
+            const cleanGeoJSON = {
+                type: "FeatureCollection",
+                features: [
+                    {
+                        type: "Feature",
+                        properties: {},
+                        geometry: geometry
                     }
-
-                    drawnItems.clearLayers();
-                    L.geoJSON(geojson).addTo(drawnItems);
-
-                    let bounds = L.geoJSON(geojson).getBounds();
-                    map.fitBounds(bounds);
-
-                    document.getElementById("agroforstBtn").disabled = false;
-                } catch (err) {
-                    alert("Fehler beim Lesen der Datei: " + err);
-                }
+                ]
             };
 
-            reader.readAsText(file);
+            // Karte aktualisieren
+            drawnItems.clearLayers();
+            const layer = L.geoJSON(cleanGeoJSON).getLayers()[0];
+            drawnItems.addLayer(layer);
+
+            // Fläche anzeigen
+            if (layer instanceof L.Polygon) {
+                const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) / 10000;
+                document.getElementById('area').textContent = area.toFixed(2);
+            }
+
+            map.fitBounds(drawnItems.getBounds());
+            document.getElementById("agroforstBtn").disabled = false;
+
+            // Für Debugging oder Weiterverwendung (optional):
+            console.log("Standardisiertes GeoJSON:", JSON.stringify(cleanGeoJSON));
+
+        } catch (err) {
+            alert("Fehler beim Verarbeiten der Datei: " + err.message);
         }
+    };
+
+    reader.readAsText(file);
+}
 
         function setOSM() {
             map.eachLayer(layer => map.removeLayer(layer));
