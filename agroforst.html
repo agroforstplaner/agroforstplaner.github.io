@@ -73,8 +73,9 @@
                 <label for="stripWidth">Streifenbreite (m):</label>
             </div>
             <div class="control-input">
-                <input type="range" id="stripWidth" value="5" min="1" max="100" step="1">
-                <span id="stripWidthValue">5</span> m
+                <input type="range" id="stripWidth" value="3" min="1" max="100" step="1">
+		<input type="number" id="stripWidthInput" value="3" min="1" max="100" step="1" style="width:60px;">
+                <span id="stripWidthValue"></span> m
             </div>
 
             <div class="control-text">
@@ -82,7 +83,8 @@
             </div>
             <div class="control-input">
                 <input type="range" id="stripSpacing" value="24" min="1" max="100" step="1">
-                <span id="stripSpacingValue">24</span> m
+		<input type="number" id="stripSpacingInput" value="24" min="1" max="100" step="1" style="width:60px;">
+		<span id="stripSpacingValue"></span> m
             </div>
 
             <div class="control-text">
@@ -90,15 +92,17 @@
             </div>
             <div class="control-input">
                 <input type="range" id="orientation" value="0" min="0" max="180" step="1">
-                <span id="orientationValue">0</span> °
+		<input type="number" id="orientationInput" value="0" min="0" max="180" step="1" style="width:60px;">
+		<span id="orientationValue"></span> °
             </div>
 
             <div class="control-text">
-                <label for="headland">Vorgewende (m):</label>
+                <label for="headland">Rand-Puffer (m):</label>
             </div>
             <div class="control-input">
-                <input type="range" id="headland" value="12" min="0" max="50" step="1">
-                <span id="headlandValue">12</span> m
+                <input type="range" id="headland" value="0" min="0" max="50" step="1">
+	        <input type="number" id="headlandInput" value="0" min="0" max="50" step="0.1" style="width:60px;">
+                <span id="headlandValue"></span> m
             </div>
 
             <div class="control-text">
@@ -106,7 +110,8 @@
             </div>
             <div class="control-input">
                 <input type="range" id="paralelshift" value="0" min="-80" max="100" step="1">
-                <span id="paralelshiftValue">0</span> m
+		<input type="number" id="paralelshiftInput" value="0" min="-100" max="100" step="0.1" style="width:60px;">
+                <span id="paralelshiftValue"></span> m
             </div>
 
 
@@ -115,8 +120,18 @@
             </div>
             <div class="control-input">
                 <input type="range" id="treeSpacing" value="10" min="0.5" max="30" step="0.5">
-                <span id="treeSpacingValue">10</span> m
+		<input type="number" id="treeSpacingInput" value="10" min="0.5" max="30" step="0.5" style="width:60px;">
+                <span id="treeSpacingValue"></span> m
+
             </div>
+	    <div class="control-text">
+    		<label for="endTrim">Vorgewende (m):</label>
+	    </div>
+	    <div class="control-input">
+    		<input type="range" id="endTrim" value="24" min="0" max="50" step="1">
+		<input type="number" id="endTrimInput" value="24" min="0" max="50" step="1" style="width:60px;">
+    		<span id="endTrimValue"></span> m
+	    </div>
 
 
         </div>
@@ -161,6 +176,23 @@
             alert("Kein Polygon gefunden!");
         }
 
+	function shortenLine(line, cutDistance) {
+    		let length = turf.length(line, { units: 'meters' });
+
+    		// Wenn Linie zu kurz ist → nichts machen
+    		if (length <= 2 * cutDistance) {
+        		return null;
+    		}
+
+    		let startPoint = turf.along(line, cutDistance, { units: 'meters' });
+    		let endPoint = turf.along(line, length - cutDistance, { units: 'meters' });
+
+    		return turf.lineString([
+        		startPoint.geometry.coordinates,
+        		endPoint.geometry.coordinates
+    		]);
+		}
+
 
 
 
@@ -178,6 +210,8 @@
             let headland = parseFloat(document.getElementById('headland').value);
             let paralelshift = parseFloat(document.getElementById('paralelshift').value);
             let treeSpacing = parseFloat(document.getElementById('treeSpacing').value);
+		let endTrim = parseFloat(document.getElementById('endTrim').value);
+
 
             if (!polygonData) return;
             let geojson = JSON.parse(polygonData);
@@ -229,14 +263,16 @@
                             .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
 
                         for (let i = 0; i < sortedPoints.length - 1; i += 2) {
-                            let segment = turf.lineString([sortedPoints[i], sortedPoints[i + 1]]);
-                            lineSegments.push(segment);
+                            let rawSegment = turf.lineString([sortedPoints[i], sortedPoints[i + 1]]);
+			    let segment = shortenLine(rawSegment, endTrim);
+			    if (!segment) return; // zu kurz → überspringen
+			    lineSegments.push(segment);
 
                             // Punkte mit Abstand treeSpacing entlang der Linie verteilen
-                            let distance = turf.distance(sortedPoints[i], sortedPoints[i + 1], { units: 'meters' });
+                            let distance = turf.length(segment, { units: 'meters' });
                             let numPoints = Math.floor(distance / treeSpacing);
 
-                            let segmentPoints = [turf.point(sortedPoints[i])]; // Erster Punkt des Segments hinzufügen
+                            let segmentPoints = [turf.point(segment.geometry.coordinates[0])]; // Erster Punkt des Segments hinzufügen
 
                             for (let j = 1; j <= numPoints; j++) {
                                 let interpolated = turf.along(segment, j * treeSpacing, { units: 'meters' });
@@ -332,7 +368,9 @@
 
 
 
-            let stripPolygons = rotatedLines.map(line => turf.buffer(line, width / 2, { units: 'meters' }));
+            let stripPolygons = lineSegments.map(segment => 
+    		turf.buffer(segment, width / 2, { units: 'meters',steps: 100 })
+		);
 
             stripPolygons.forEach(strip => {
                 if (turf.booleanIntersects(strip, innerPolygon)) {
@@ -366,35 +404,86 @@
 
 
         // Event-Listener für Schieberegler: Jede Änderung führt sofort zu einer Ausführung der Funktion generateStrips()
-        document.getElementById('stripWidth').addEventListener('input', function () {
-            document.getElementById('stripWidthValue').textContent = this.value;
-            generateStrips();  // Aufruf der Funktion, die Streifen generiert
-        });
+        
+	// Slider → Input
+	document.getElementById('stripWidth').addEventListener('input', function () {
+    	document.getElementById('stripWidthInput').value = this.value;
+    	generateStrips();
+	});
+	// Input → Slider
+	document.getElementById('stripWidthInput').addEventListener('input', function () {
+    	document.getElementById('stripWidth').value = this.value;
+    	generateStrips();
+	});
 
-        document.getElementById('stripSpacing').addEventListener('input', function () {
-            document.getElementById('stripSpacingValue').textContent = this.value;
-            generateStrips();  // Aufruf der Funktion, die Streifen generiert
-        });
 
-        document.getElementById('orientation').addEventListener('input', function () {
-            document.getElementById('orientationValue').textContent = this.value;
-            generateStrips();  // Aufruf der Funktion, die Streifen generiert
-        });
+	// Slider → Input
+	document.getElementById('stripSpacing').addEventListener('input', function () {
+    	document.getElementById('stripSpacingInput').value = this.value;
+    	generateStrips();
+	});
+	// Input → Slider
+	document.getElementById('stripSpacingInput').addEventListener('input', function () {
+    	document.getElementById('stripSpacing').value = this.value;
+    	generateStrips();
+	});
+        
+	// Slider → Input
+	document.getElementById('orientation').addEventListener('input', function () {
+    	document.getElementById('orientationInput').value = this.value;
+    	generateStrips();
+	});
+	// Input → Slider
+	document.getElementById('orientationInput').addEventListener('input', function () {
+    	document.getElementById('orientation').value = this.value;
+    	generateStrips();
+	});
+        
+	
+        // Slider → Input
+	document.getElementById('headland').addEventListener('input', function () {
+    	document.getElementById('headlandInput').value = this.value;
+    	generateStrips();
+	});
+	// Input → Slider
+	document.getElementById('headlandInput').addEventListener('input', function () {
+    	document.getElementById('headland').value = this.value;
+    	generateStrips();
+	});
 
-        document.getElementById('headland').addEventListener('input', function () {
-            document.getElementById('headlandValue').textContent = this.value;
-            generateStrips();  // Aufruf der Funktion, die Streifen generiert
-        });
+	// Slider → Input
+	document.getElementById('paralelshift').addEventListener('input', function () {
+    	document.getElementById('paralelshiftInput').value = this.value;
+    	generateStrips();
+	});
+	// Input → Slider
+	document.getElementById('paralelshiftInput').addEventListener('input', function () {
+    	document.getElementById('paralelshift').value = this.value;
+    	generateStrips();
+	});
+        
+	// Slider → Input
+	document.getElementById('treeSpacing').addEventListener('input', function () {
+    	document.getElementById('treeSpacingInput').value = this.value;
+    	generateStrips();
+	});
+	// Input → Slider
+	document.getElementById('treeSpacingInput').addEventListener('input', function () {
+    	document.getElementById('treeSpacing').value = this.value;
+    	generateStrips();
+	});
 
-        document.getElementById('paralelshift').addEventListener('input', function () {
-            document.getElementById('paralelshiftValue').textContent = this.value;
-            generateStrips();
-        });
-
-        document.getElementById('treeSpacing').addEventListener('input', function () {
-            document.getElementById('treeSpacingValue').textContent = this.value;
-            generateStrips();
-        });
+	// Slider → Input
+	document.getElementById('endTrim').addEventListener('input', function () {
+    	document.getElementById('endTrimInput').value = this.value;
+    	generateStrips();
+	});
+	// Input → Slider
+	document.getElementById('endTrimInput').addEventListener('input', function () {
+    	document.getElementById('endTrim').value = this.value;
+    	generateStrips();
+	});
+	
 
 
         var dtk10grauLayer = L.tileLayer.wms("https://isk.geobasis-bb.de/mapproxy/dtk10grau/service/wms?", {
